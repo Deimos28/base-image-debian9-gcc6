@@ -3,6 +3,7 @@ FROM debian:9
 RUN set -x && \
     apt-get update -yq && \
     apt-get install --yes --no-install-recommends \
+        autoconf \
         build-essential \
         ca-certificates \
         curl \
