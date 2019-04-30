@@ -182,3 +182,6 @@ RUN git clone https://github.com/zeromq/cppzmq.git && \
     make install && \
     cd .. && \
     rm -rf cppzmq
+
+RUN cd /opt && \
+    git clone https://github.com/garrison/eigen3-hdf5
