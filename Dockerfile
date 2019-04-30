@@ -17,6 +17,7 @@ RUN set -x && \
         libblas3 \
         liblapack3 \
         libbz2-dev \
+        libtool \
         && \
     apt-get clean && \
     rm -rf /tmp/* /var/tmp/* && \
