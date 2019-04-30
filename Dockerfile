@@ -1,0 +1,183 @@
+FROM debian:9
+
+RUN set -x && \
+    apt-get update -yq && \
+    apt-get install --yes --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        curl \
+        g++ \
+        gcc \
+        gfortran \
+        git \
+        ninja-build \
+        unzip \
+        wget \
+        libblas3 \
+        liblapack3 \
+        libbz2-dev \
+        && \
+    apt-get clean && \
+    rm -rf /tmp/* /var/tmp/* && \
+    rm -rf /var/lib/apt/lists
+
+RUN mkdir -p /opt
+WORKDIR /opt
+
+RUN mkdir -p /opt/cmake && \
+    wget https://cmake.org/files/v3.14/cmake-3.14.0-Linux-x86_64.sh -O cmake.sh && \
+    sh ./cmake.sh --exclude-subdir --prefix=/opt/cmake && \
+    rm -rf cmake.sh
+ENV PATH="/opt/cmake/bin:${PATH}"
+
+# BOOST 1.60 with Boost geometry extensions
+# SSC : system thread random chrono
+# XDYN : program_options filesystem system regex
+# libbz2 is required for Boost compilation
+RUN wget http://sourceforge.net/projects/boost/files/boost/1.60.0/boost_1_60_0.tar.gz -O boost_src.tar.gz && \
+    mkdir -p boost_src && \
+    tar -xzf boost_src.tar.gz --strip 1 -C boost_src && \
+    rm -rf boost_src.tar.gz && \
+    cd boost_src && \
+    ./bootstrap.sh && \
+    ./b2 cxxflags=-fPIC --without-mpi --without-python link=static threading=single threading=multi --layout=tagged --prefix=/opt/boost install && \
+    cd .. && \
+    rm -rf boost_src
+# BOOST Geometry extension
+RUN git clone https://github.com/boostorg/geometry && \
+    cd geometry && \
+    git checkout 4aa61e59a72b44fb3c7761066d478479d2dd63a0 && \
+    cp -rf include/boost/geometry/extensions /opt/boost/include/boost/geometry/. && \
+    cd .. && \
+    rm -rf geometry
+
+# Ipopt
+# http://www.coin-or.org/Ipopt/documentation/node10.html
+ENV IPOPT_VERSION=3.12.13
+RUN gfortran --version && \
+    wget http://www.coin-or.org/download/source/Ipopt/Ipopt-$IPOPT_VERSION.tgz -O ipopt_src.tgz && \
+    mkdir -p ipopt_src && \
+    tar -xf ipopt_src.tgz --strip 1 -C ipopt_src && \
+    rm -rf ipopt_src.tgz && \
+    cd ipopt_src && \
+    cd ThirdParty/Blas && \
+        ./get.Blas && \
+    cd ../Lapack && \
+        ./get.Lapack && \
+    cd ../Mumps && \
+        ./get.Mumps && \
+    cd ../../ && \
+    mkdir build && \
+    cd build && \
+    ../configure -with-pic --disable-shared --prefix=/opt/CoinIpopt && \
+    make && \
+    make test && \
+    make install && \
+    cd .. && \
+    cd .. && \
+    rm -rf ipopt_src
+
+RUN wget https://github.com/eigenteam/eigen-git-mirror/archive/3.3.7.tar.gz -O eigen.tgz && \
+    mkdir -p /opt/eigen && \
+    tar -xzf eigen.tgz --strip 1 -C /opt/eigen && \
+    rm -rf eigen.tgz
+
+RUN wget https://github.com/jbeder/yaml-cpp/archive/release-0.3.0.tar.gz -O yaml_cpp.tgz && \
+    mkdir -p /opt/yaml_cpp && \
+    tar -xzf yaml_cpp.tgz --strip 1 -C /opt/yaml_cpp && \
+    rm -rf yaml_cpp.tgz
+
+RUN wget https://github.com/google/googletest/archive/release-1.8.1.tar.gz -O googletest.tgz && \
+    mkdir -p /opt/googletest && \
+    tar -xzf googletest.tgz --strip 1 -C /opt/googletest && \
+    rm -rf googletest.tgz
+
+RUN wget https://github.com/zaphoyd/websocketpp/archive/0.7.0.tar.gz -O websocketpp.tgz && \
+    mkdir -p /opt/websocketpp && \
+    tar -xzf websocketpp.tgz --strip 1 -C /opt/websocketpp && \
+    rm -rf websocketpp.tgz
+
+RUN mkdir -p /opt/libf2c && \
+    cd /opt/libf2c && \
+    wget http://www.netlib.org/f2c/libf2c.zip -O libf2c.zip && \
+    unzip libf2c.zip && \
+    rm -rf libf2c.zip
+
+RUN wget https://sourceforge.net/projects/geographiclib/files/distrib/archive/GeographicLib-1.30.tar.gz/download -O geographiclib.tgz && \
+    mkdir -p /opt/geographiclib && \
+    tar -xzf geographiclib.tgz --strip 1 -C /opt/geographiclib && \
+    rm -rf geographiclib.tgz
+
+ENV HDF5_INSTALL=/usr/local/hdf5
+RUN wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/hdf5-1.8.12/src/hdf5-1.8.12.tar.gz -O hdf5_source.tar.gz && \
+    mkdir -p HDF5_SRC && \
+    tar -xf hdf5_source.tar.gz --strip 1 -C HDF5_SRC && \
+    mkdir -p HDF5_build && \
+    cd HDF5_build && \
+    cmake -G"Unix Makefiles" \
+         -DCMAKE_BUILD_TYPE:STRING=Release \
+         -DCMAKE_INSTALL_PREFIX:PATH=${HDF5_INSTALL} \
+         -DBUILD_SHARED_LIBS:BOOL=OFF \
+         -DBUILD_TESTING:BOOL=OFF \
+         -DHDF5_BUILD_TOOLS:BOOL=OFF \
+         -DHDF5_BUILD_EXAMPLES:BOOL=OFF \
+         -DHDF5_BUILD_HL_LIB:BOOL=ON \
+         -DHDF5_BUILD_CPP_LIB:BOOL=ON \
+         -DHDF5_BUILD_FORTRAN:BOOL=OFF \
+         -DCMAKE_C_FLAGS="-fPIC" \
+         -DCMAKE_CXX_FLAGS="-fPIC" \
+         ../HDF5_SRC && \
+    make install && \
+    cd .. && \
+    rm -rf hdf5_source.tar.gz HDF5_SRC HDF5_build
+
+RUN git clone https://github.com/google/protobuf.git && \
+    cd protobuf \
+    git checkout 3.0.x && \
+    ./autogen.sh && \
+    ./configure "CFLAGS=-fPIC" "CXXFLAGS=-fPIC" && \
+    make && \
+    make install && \
+    ldconfig && \
+    cd .. && \
+    rm -rf protobuf
+
+RUN git clone https://github.com/zeromq/libzmq.git && \
+    cd libzmq && \
+    git checkout v4.2.2 && \
+    mkdir build && \
+    cd build && \
+    cmake \
+        -DWITH_PERF_TOOL=OFF \
+        -DZMQ_BUILD_TESTS=OFF \
+        -DENABLE_CPACK=OFF \
+        -DCMAKE_C_FLAGS="-fPIC" \
+        -DCMAKE_CXX_FLAGS="-fPIC" \
+        -DCMAKE_BUILD_TYPE=Release \
+        .. \
+    && \
+    make && \
+    echo "if(NOT TARGET libzmq) # in case find_package is called multiple times" >> ZeroMQConfig.cmake && \
+    echo "  add_library(libzmq SHARED IMPORTED)" >> ZeroMQConfig.cmake && \
+    echo "  set_target_properties(libzmq PROPERTIES IMPORTED_LOCATION \${\${PN}_LIBRARY})" >> ZeroMQConfig.cmake && \
+    echo "endif(NOT TARGET libzmq)" >> ZeroMQConfig.cmake && \
+    echo "" >> ZeroMQConfig.cmake && \
+    echo "if(NOT TARGET libzmq-static) # in case find_package is called multiple times" >> ZeroMQConfig.cmake && \
+    echo "  add_library(libzmq-static STATIC IMPORTED)" >> ZeroMQConfig.cmake && \
+    echo "  set_target_properties(libzmq-static PROPERTIES IMPORTED_LOCATION \${\${PN}_STATIC_LIBRARY})" >> ZeroMQConfig.cmake && \
+    echo "endif(NOT TARGET libzmq-static)" >> ZeroMQConfig.cmake && \
+    make install && \
+    ldconfig && \
+    rm -rf libzmq
+
+RUN git clone https://github.com/zeromq/cppzmq.git && \
+    cd cppzmq && \
+    git checkout v4.2.2 && \
+    mkdir build && \
+    cd build && \
+    cmake .. && \
+        -DCMAKE_C_FLAGS="-fPIC" && \
+        -DCMAKE_CXX_FLAGS="-fPIC" && \
+    make install && \
+    cd .. && \
+    rm -rf cppzmq
