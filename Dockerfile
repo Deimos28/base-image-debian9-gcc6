@@ -178,9 +178,10 @@ RUN git clone https://github.com/zeromq/cppzmq.git && \
     git checkout v4.2.2 && \
     mkdir build && \
     cd build && \
-    cmake .. && \
-        -DCMAKE_C_FLAGS="-fPIC" && \
-        -DCMAKE_CXX_FLAGS="-fPIC" && \
+    cmake \
+        -DCMAKE_C_FLAGS="-fPIC" \
+        -DCMAKE_CXX_FLAGS="-fPIC" \
+        .. && \
     make install && \
     cd .. && \
     rm -rf cppzmq
