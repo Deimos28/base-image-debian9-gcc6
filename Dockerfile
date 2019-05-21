@@ -23,6 +23,8 @@ RUN set -x && \
         cmake \
         libc-ares-dev \
         libssl-dev && \
+    echo "deb http://deb.debian.org/debian stretch-backports main" >>  /etc/apt/sources.list && \
+    apt-get update && \
     apt-get -t stretch-backports install --yes --no-install-recommends \
         libgrpc++-dev \
         libgrpc++1 \
