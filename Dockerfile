@@ -19,10 +19,23 @@ RUN set -x && \
         liblapack3 \
         libbz2-dev \
         libtool \
+        make \
+        cmake \
+        libc-ares-dev \
+        libssl-dev && \
+    apt-get -t stretch-backports install --yes --no-install-recommends \
+        libgrpc++-dev \
+        libgrpc++1 \
+        libgrpc-dev \
+        libgrpc6 \
+        libprotobuf-dev \
+        libprotoc-dev \
+        protobuf-compiler-grpc \
         && \
     apt-get clean && \
     rm -rf /tmp/* /var/tmp/* && \
     rm -rf /var/lib/apt/lists
+
 
 RUN mkdir -p /opt
 WORKDIR /opt
